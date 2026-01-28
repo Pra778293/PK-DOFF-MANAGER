@@ -1,1 +1,177 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Doff Manager Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { 
+            --primary: #2563eb; --secondary: #10b981; --danger: #ef4444;
+            --bg: #f1f5f9; --card: #ffffff; --text: #1e293b;
+        }
+        [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; transition: 0.3s; }
+        
+        .app-bar { background: #0f172a; color: white; padding: 15px; text-align: center; border-bottom: 4px solid var(--primary); position: sticky; top: 0; z-index: 1000; }
+        .nav-tabs { display: flex; background: #1e293b; padding: 5px; position: sticky; top: 60px; z-index: 1000; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: none; color: #94a3b8; font-weight: bold; cursor: pointer; border-radius: 8px; font-size: 13px; }
+        .tab-btn.active { background: var(--card); color: var(--primary); }
 
+        .container { padding: 15px; max-width: 500px; margin: auto; display: none; }
+        .container.active { display: block; }
+
+        .card { background: var(--card); border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .full-row { grid-column: span 2; }
+
+        label { font-size: 11px; font-weight: bold; color: #64748b; display: block; margin-bottom: 5px; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; background: var(--card); color: var(--text); box-sizing: border-box; outline: none; }
+        
+        .use-after-box { background: rgba(37, 99, 235, 0.1); border: 1.5px dashed var(--primary); padding: 15px; border-radius: 15px; margin-top: 10px; }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: bold; font-size: 16px; cursor: pointer; background: var(--primary); color: white; }
+        
+        #reader { width: 100%; border-radius: 15px; background: #000; overflow: hidden; }
+        #qrcode { margin-top: 20px; display: flex; justify-content: center; }
+        .entry-item { padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 6px solid; font-size: 13px; background: #f0fdf4; border-color: var(--secondary); }
+    </style>
+</head>
+<body>
+
+<div class="app-bar"><h2 style="margin:0; font-size:20px;">PK CORD MANAGER PRO</h2></div>
+
+<div class="nav-tabs">
+    <button id="btn-form" class="tab-btn active" onclick="switchPage('form')">ENTRY FORM</button>
+    <button id="btn-scan" class="tab-btn" onclick="switchPage('scan')">SCANNER</button>
+    <button id="btn-data" class="tab-btn" onclick="switchPage('data')">REPORTS</button>
+</div>
+
+<div id="page-form" class="container active">
+    <div class="card">
+        <form id="doffForm">
+            <div class="grid">
+                <div><label>Material</label><select id="mat" onchange="updateDeniers()"><option value="N6">N6</option><option value="N66">N66</option><option value="PET">PET</option></select></div>
+                <div><label>Denier</label><select id="denier"></select></div>
+                <div><label>Machine No.</label><select id="mc"></select></div>
+                <div><label>No. of Cord</label><input type="number" id="cordNo" placeholder="Count"></div>
+                <div class="full-row"><label>Doff Number</label><input type="text" id="doff" placeholder="e.g. A7101"></div>
+                <div><label>Doff Date</label><input type="date" id="doffDate" onchange="calcUseAfter()"></div>
+                <div><label>Doff Time</label><input type="time" id="doffTime" onchange="calcUseAfter()"></div>
+                
+                <div class="full-row use-after-box">
+                    <label style="color:var(--primary)">Use After (24 Hours Curing)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="useAfterDate" readonly style="background:transparent; border:none; font-weight:bold;">
+                        <input type="text" id="useAfterTime" readonly style="background:transparent; border:none; font-weight:bold;">
+                    </div>
+                </div>
+
+                <div class="full-row"><label>TPM</label><input type="number" id="tpm" placeholder="Enter TPM"></div>
+                <div class="full-row"><label>Tube Colour</label><select id="tube"><option>RED</option><option>SKY BLUE</option><option>BLACK</option><option>PINK</option><option>YELLOW</option><option>BLACK STRIP</option></select></div>
+            </div>
+            <button type="button" class="btn" onclick="generateQR()">GENERATE QR CODE</button>
+        </form>
+        <div id="qrcode"></div>
+    </div>
+</div>
+
+<div id="page-scan" class="container">
+    <div class="card">
+        <div id="reader"></div>
+        <p style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;">Ready to Scan</p>
+    </div>
+</div>
+
+<div id="page-data" class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <span style="font-weight:bold;">Verified Doffs</span>
+        <button onclick="exportExcel()" class="btn" style="width:auto; padding:8px 15px;">Excel</button>
+    </div>
+    <div id="okList"></div>
+</div>
+
+<script>
+    let verifiedDB = [];
+    let html5QrCode;
+    const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
+    // Material-Denier Map
+    const denierMap = { "N6": ["840/2", "1260/2", "1680/2", "1890/2"], "N66": ["1260/2"], "PET": ["1000/2", "1300/2", "1500/2", "2000/2", "3000/2"] };
+
+    function updateDeniers() {
+        const mat = document.getElementById('mat').value;
+        document.getElementById('denier').innerHTML = denierMap[mat].map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    // Machine List 1L/R - 24L/R
+    const mcSelect = document.getElementById('mc');
+    for(let i=1; i<=24; i++) { ['L','R'].forEach(s => { let o = document.createElement('option'); o.value=i+s; o.text=i+s; mcSelect.add(o); }); }
+
+    // 24 HOUR LOGIC
+    function calcUseAfter() {
+        let dDate = document.getElementById('doffDate').value;
+        let dTime = document.getElementById('doffTime').value;
+        if(!dDate || !dTime) return;
+
+        let doffDateTime = new Date(dDate + "T" + dTime);
+        let useAfterDateTime = new Date(doffDateTime.getTime() + (24 * 60 * 60 * 1000)); // Add 24 Hours
+
+        document.getElementById('useAfterDate').value = useAfterDateTime.toLocaleDateString('en-GB');
+        document.getElementById('useAfterTime').value = useAfterDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function switchPage(p) {
+        document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-' + p).classList.add('active');
+        document.getElementById('btn-' + p).classList.add('active');
+        if(p === 'scan') startScanner(); else if(html5QrCode) html5QrCode.stop();
+    }
+
+    function generateQR() {
+        let doff = document.getElementById('doff').value.toUpperCase();
+        let useDate = document.getElementById('useAfterDate').value;
+        let useTime = document.getElementById('useAfterTime').value;
+        if(!doff) return alert("Doff No bharna zaroori hai!");
+        
+        let data = `Doff:${doff}|UseAfter:${useDate} ${useTime}|Mat:${document.getElementById('mat').value}|MC:${mcSelect.value}`;
+        document.getElementById("qrcode").innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), { text: data, width: 160, height: 160 });
+    }
+
+    function startScanner() {
+        html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+            if (verifiedDB.some(i => i.Raw === text)) { alert("Duplicate!"); }
+            else {
+                beep.play(); if(navigator.vibrate) navigator.vibrate(100);
+                let p = text.split('|');
+                verifiedDB.push({ Doff: p[0], UseAfter: p[1], Time: new Date().toLocaleTimeString(), Raw: text });
+                updateUI();
+            }
+        });
+    }
+
+    function updateUI() {
+        document.getElementById('okList').innerHTML = verifiedDB.map(i => `<div class="entry-item"><b>${i.Doff}</b><br>Use After: ${i.UseAfter.replace('UseAfter:','')}</div>`).join('');
+    }
+
+    function exportExcel() {
+        let ws = XLSX.utils.json_to_sheet(verifiedDB);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Verified");
+        XLSX.writeFile(wb, "PK_Doff_Report.xlsx");
+    }
+
+    window.onload = () => {
+        let now = new Date();
+        document.getElementById('doffDate').valueAsDate = now;
+        document.getElementById('doffTime').value = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+        updateDeniers();
+        calcUseAfter();
+    };
+</script>
+</body>
+</html>
